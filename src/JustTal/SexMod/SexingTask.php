@@ -110,7 +110,7 @@ class SexingTask extends Task {
 				$this->playSound($this->player, "Father");
 				$this->playSound($this->sexingPlayer, "Father");
 			} else if (mt_rand(0, 100) <= 2) {
-				$this->scheduler->scheduleDelayedTask(new ClosureTask(function (int $currentTick): void {
+				$this->scheduler->scheduleDelayedTask(new ClosureTask(function (): void {
 					for ($i = 0; $i <= 4; $i++) {
 						$this->player->dropItem(VanillaItems::BONE_MEAL()->setCustomName(TextFormat::RESET . TextFormat::WHITE . "Cum"));
 						// usleep(200000); wtf?
