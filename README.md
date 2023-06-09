@@ -1,6 +1,12 @@
 # GaySexLegends
 Have sex with someone in the game!!!
 
+
+
+https://github.com/IgPlugin/GaySexLegends/assets/60387689/22d0fe35-7bf9-4787-8733-14cb5a520e8c
+
+
+
 # How to sex?
 You need a bed, a partner. Your partner or you lying in bed.
 
