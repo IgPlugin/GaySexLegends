@@ -92,10 +92,10 @@ class SexingTask extends Task {
 			$sexingXp = mt_rand(10, 12) * ($this->sexingPlayer->getXpManager()->getXpLevel() == 0 ? 1 : ($this->sexingPlayer->getXpManager()->getXpLevel() * 1.2));
 
 			$this->player->sendMessage(TextFormat::GREEN . "You earned " . $xp . " experience points for this sexventure!");
-			$this->player->getXpManager()->addXp($xp, true);
+			$this->player->getXpManager()->addXp((int)$xp, true);
 
 			$this->sexingPlayer->sendMessage(TextFormat::GREEN . "You earned " . $sexingXp . " experience points for this sexventure!");
-			$this->sexingPlayer->getXpManager()->addXp($sexingXp, true);
+			$this->sexingPlayer->getXpManager()->addXp((int)$sexingXp, true);
 
 			throw new CancelTaskException();
 			$this->scheduler->scheduleRepeatingTask(new SexChecker($this->player, $this->scheduler), 1);
