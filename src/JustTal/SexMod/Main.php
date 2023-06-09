@@ -1,127 +1,150 @@
 <?php
 
+declare(strict_types=1);
+
 namespace JustTal\SexMod;
 
-use pocketmine\entity\Entity;
+use NhanAZ\libRegRsp\libRegRsp;
+use pocketmine\block\Air;
+use pocketmine\block\tile\Bed;
+use pocketmine\entity\EntityDataHelper;
+use pocketmine\entity\EntityFactory;
+use pocketmine\entity\Human;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerLoginEvent;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\DoubleTag;
+use pocketmine\nbt\tag\FloatTag;
+use pocketmine\nbt\tag\ListTag;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\player\GameMode;
+use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
-use pocketmine\resourcepacks\ZippedResourcePack;
-use pocketmine\tile\Bed;
-use ReflectionClass;
+use pocketmine\utils\SingletonTrait;
+use pocketmine\utils\TextFormat;
+use pocketmine\world\World;
 
 class Main extends PluginBase implements Listener {
+	use SingletonTrait;
 
-    public static $layData = [];
+	public static $layData = [];
 
-    public static $sexing = [];
+	public static $sexing = [];
 
-    public function onEnable() : void {
-        $this->getLogger()->info("SEX MOD IS ENABLE");
+	protected function onEnable(): void {
+		self::setInstance($this);
+		$this->getServer()->getPluginManager()->registerEvents($this, $this);
+		EntityFactory::getInstance()->register(LayingEntity::class, function (World $world, CompoundTag $nbt): LayingEntity {
+			return new LayingEntity(EntityDataHelper::parseLocation($nbt, $world), Human::parseSkinNBT($nbt), $nbt);
+		}, ['LayingEntity']);
+		libRegRsp::regRsp($this);
+	}
 
-        $this->saveResource("resource.mcpack", true);
-        $this->loadPack();
+	protected function onDisable(): void {
+		libRegRsp::unRegRsp($this);
+	}
 
-        $this->getServer()->getPluginManager()->registerEvents($this, $this);
-        Entity::registerEntity(LayingEntity::class, true, ["LayingEntity"]);
-    }
+	public function onLogin(PlayerLoginEvent $event): void {
+		$event->getPlayer()->teleport($this->getServer()->getWorldManager()->getDefaultWorld()->getSafeSpawn());
+	}
 
-    public function loadPack() : void {
-        $manager = $this->getServer()->getResourcePackManager();
-        $pack = new ZippedResourcePack($this->getDataFolder() . "resource.mcpack");
+	public function onJoin(PlayerJoinEvent $event): void {
+		$player = $event->getPlayer();
+		if ($player->getGamemode()->equals(GameMode::SPECTATOR())) {
+			$player->setGamemode(GameMode::SURVIVAL());
+		}
+		$this->getScheduler()->scheduleRepeatingTask(new SexChecker($player, $this->getScheduler()), 1);
+	}
 
-        $reflection = new ReflectionClass($manager);
+	public function onSleep(PlayerInteractEvent $event): void {
+		if ($event->getBlock() instanceof Bed) {
+			return;
+		}
+	}
 
-        $property = $reflection->getProperty("resourcePacks");
-        $property->setAccessible(true);
+	// Thanks to SimpleLay by brokiem. This version is slightly modified
+	// http://github.com/brokiem/SimpleLay
+	/**
+	 * Helper function which creates minimal NBT needed to spawn an entity.
+	 */
+	public static function createBaseNBT(Vector3 $pos, ?Vector3 $motion = null, float $yaw = 0.0, float $pitch = 0.0): CompoundTag {
+		return CompoundTag::create()
+			->setTag("Pos", new ListTag([
+				new DoubleTag($pos->x),
+				new DoubleTag($pos->y),
+				new DoubleTag($pos->z)
+			]))
+			->setTag("Motion", new ListTag([
+				new DoubleTag($motion !== null ? $motion->x : 0.0),
+				new DoubleTag($motion !== null ? $motion->y : 0.0),
+				new DoubleTag($motion !== null ? $motion->z : 0.0)
+			]))
+			->setTag("Rotation", new ListTag([
+				new FloatTag($yaw),
+				new FloatTag($pitch)
+			]));
+	}
 
-        $currentResourcePacks = $property->getValue($manager);
-        $currentResourcePacks[] = $pack;
-        $property->setValue($manager, $currentResourcePacks);
+	// Thanks to SimpleLay by brokiem. This version is slightly modified
+	// http://github.com/brokiem/SimpleLay
+	public function setLay(Player $player): void {
+		$level = $player->getWorld();
+		$block = $level->getBlock($player->getPosition()->add(0, -0.5, 0));
+		if ($block instanceof Air) {
+			$player->sendMessage(TextFormat::colorize("&cYou can't sex here!"));
+			return;
+		}
 
-        $property = $reflection->getProperty("uuidList");
-        $property->setAccessible(true);
-        $currentUUIDPacks = $property->getValue($manager);
-        $currentUUIDPacks[strtolower($pack->getPackId())] = $pack;
-        $property->setValue($manager, $currentUUIDPacks);
+		$player->saveNBT();
 
-        $property = $reflection->getProperty("serverForceResources");
-        $property->setAccessible(true);
-        $property->setValue($manager, true);
-    }
+		$nbt = Main::createBaseNBT($player->getLocation(), null, $player->getLocation()->getYaw(), $player->getLocation()->getPitch());
 
-    public function onDisable() : void {
-        $this->getLogger()->info("SEX MOD IS DISABLE !??!?!? WTF !??!?");
-    }
+		$pos = $player->getPosition()->add(0, -0.3, 0);
+		$layingEntity = new LayingEntity($player->getLocation(), $player->getSkin(), $nbt, $player);
+		$layingEntity->getNetworkProperties()->setFloat(EntityMetadataProperties::BOUNDING_BOX_HEIGHT, 0.2);
+		$layingEntity->getNetworkProperties()->setBlockPos(EntityMetadataProperties::PLAYER_BED_POSITION, new BlockPosition($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ()));
+		$layingEntity->getNetworkProperties()->setGenericFlag(EntityMetadataFlags::SLEEPING, true);
 
-    public function onLogin(PlayerLoginEvent $event) : void {
-        $event->getPlayer()->teleport($this->getServer()->getDefaultLevel()->getSafeSpawn());
-    }
+		$layingEntity->setCanSaveWithChunk(false);
+		$layingEntity->setNameTag($player->getDisplayName());
+		$layingEntity->spawnToAll();
 
-    public function onJoin(PlayerJoinEvent $event) : void {
-        $player = $event->getPlayer();
-        if ($player->getGamemode() == 3) {
-            $player->setGamemode(0);
-        }
-        $this->getScheduler()->scheduleRepeatingTask(new SexChecker($player, $this->getScheduler()), 1);
-    }
+		$player->teleport($player->getPosition()->add(0, -0.5, 0));
 
-    public function onSleep(PlayerInteractEvent $event) : void {
-        if ($event->getBlock() instanceof Bed) {
-            return;
-        }
-    }
+		self::$layData[strtolower($player->getName())] = [
+			"entity" => $layingEntity,
+			"pos" => $player->getPosition()->floor()
+		];
 
-    // Thanks to SimpleLay by brokiem. This version is slightly modified
-    // http://github.com/brokiem/SimpleLay
-    public static function setLay(Player $player, Vector3 $pos) : void {
-        $player->saveNBT();
+		$player->setInvisible();
+		$player->setNoClientPredictions();
+		$player->setScale(0.01);
 
-        $nbt = Entity::createBaseNBT($player, null, 0, 0);
-        $nbt->setTag($player->namedtag->getTag("Skin"));
+		$player->sendMessage(TextFormat::colorize("&6You are now sexing!"));
+		$player->sendActionBarMessage(TextFormat::colorize("Tap the sneak button to stand up"));
+	}
 
-        $layingEntity = Entity::createEntity("LayingEntity", $player->getLevelNonNull(), $nbt, $player);
+	// Thanks to SimpleLay by brokiem. This version is slightly modified
+	// http://github.com/brokiem/SimpleLay
+	public function unsetLay(Player $player): void {
+		$entity = self::$layData[strtolower($player->getName())];
 
-        if (!$layingEntity instanceof LayingEntity) {
-            return;
-        }
+		$player->setInvisible(false);
+		$player->setNoClientPredictions(false);
+		$player->setScale(1);
 
-        $layingEntity->getDataPropertyManager()->setFloat(LayingEntity::DATA_BOUNDING_BOX_HEIGHT, 0.2);
-        $layingEntity->getDataPropertyManager()->setBlockPos(LayingEntity::DATA_PLAYER_BED_POSITION, $pos);
-        $layingEntity->setGenericFlag(LayingEntity::DATA_FLAG_SLEEPING, true);
+		$player->sendMessage(TextFormat::colorize("&6You are no longer sexing!"));
+		unset(self::$layData[strtolower($player->getName())]);
 
-        $layingEntity->setNameTag($player->getDisplayName());
-        $layingEntity->spawnToAll();
+		if (($entity instanceof LayingEntity) && !$entity->isFlaggedForDespawn()) {
+			$entity->flagForDespawn();
+		}
 
-        $player->teleport($player->add(0, -1));
-
-        self::$layData[$player->getLowerCaseName()] = $layingEntity;
-
-        $player->setInvisible();
-        $player->setImmobile();
-        $player->setGamemode(3);
-        $player->setScale(0.01);
-    }
-
-    // Thanks to SimpleLay by brokiem. This version is slightly modified
-    // http://github.com/brokiem/SimpleLay
-    public static function unsetLay(Player $player) : void {
-        $entity = self::$layData[$player->getLowerCaseName()];
-
-        $player->setGamemode(0);
-        $player->setInvisible(false);
-        $player->setImmobile(false);
-        $player->setScale(1);
-
-        unset(self::$layData[$player->getLowerCaseName()]);
-
-        if (($entity instanceof LayingEntity) && !$entity->isFlaggedForDespawn()) {
-            $entity->flagForDespawn();
-        }
-    }
-
+		$player->teleport($player->getPosition()->add(0, 1.2, 0));
+	}
 }

@@ -5,41 +5,30 @@ declare(strict_types=1);
 namespace JustTal\SexMod;
 
 use pocketmine\entity\Human;
+use pocketmine\entity\Location;
+use pocketmine\entity\Skin;
 use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\level\Level;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\Player;
+use pocketmine\player\Player;
 
 // Thanks to SimpleLay by brokiem. This version is slightly modified
 // http://github.com/brokiem/SimpleLay
 class LayingEntity extends Human {
 
-    private $player;
-    
-    public function __construct(Level $level, CompoundTag $nbt, Player $player) {
-        parent::__construct($level, $nbt);
-        $this->player = $player;
-        $this->setCanSaveWithChunk(false);
-    }
+	public function __construct(Location $location, Skin $skin, ?CompoundTag $nbt = null, private ?Player $player = null) {
+		parent::__construct($location, $skin, $nbt);
+	}
 
-    public function onUpdate(int $currentTick): bool {
-        if ($this->isFlaggedForDespawn()) {
-            return false;
-        }
+	public function onUpdate(int $currentTick): bool {
+		if ($this->isFlaggedForDespawn() || $this->player === null) {
+			return false;
+		}
 
-        if (!$this->player->isOnline()) {
-            $this->flagForDespawn();
-            return false;
-        }
+		$this->getArmorInventory()->setContents($this->player->getArmorInventory()->getContents());
+		$this->getInventory()->setHeldItemIndex($this->player->getInventory()->getHeldItemIndex());
+		return true;
+	}
 
-        $this->getArmorInventory()->setContents($this->player->getArmorInventory()->getContents());
-        $this->getInventory()->setContents($this->player->getInventory()->getContents());
-        $this->getInventory()->setHeldItemIndex($this->player->getInventory()->getHeldItemIndex());
-        return true;
-    }
-
-    public function attack(EntityDamageEvent $source): void {
-        // do nothing
-    }
-
+	public function attack(EntityDamageEvent $source): void {
+	}
 }

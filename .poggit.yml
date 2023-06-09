@@ -1,8 +1,12 @@
---- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/IcyEndymion004/Minecraft-Sex-Plugin-Pocketmine
+--- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/IgPlugin/GaySexLegends
 build-by-default: true
 branches:
 - main
 projects:
-  Minecraft-Sex-Plugin-Pocketmine:
+  GaySexLegends:
     path: ""
+    libs:
+      - src: NhanAZ/libRegRsp/libRegRsp
+        version: 1.0.3
+
 ...

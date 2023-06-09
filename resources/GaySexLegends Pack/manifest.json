@@ -1,0 +1,30 @@
+{
+    "format_version": 2,
+    "header": {
+        "description": "§l§3Made by xPrim69x!",
+        "name": "§l§dHot sex for Tal!",
+        "uuid": "339b53d8-ae7a-4727-8afd-92d358064841",
+        "version": [
+            1,
+            0,
+            0
+        ],
+        "min_engine_version": [
+            1,
+            14,
+            0
+        ]
+    },
+    "modules": [
+        {
+            "description": "§l§3Made by xPrim69x!",
+            "type": "resources",
+            "uuid": "bbc28577-cd65-41ae-97ab-569bb5b57f15",
+            "version": [
+                1,
+                0,
+                0
+            ]
+        }
+    ]
+}

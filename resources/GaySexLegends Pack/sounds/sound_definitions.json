@@ -1,0 +1,20 @@
+{
+	"Moan": {
+		"category": "music",
+		"sounds": [
+			{
+				"name": "sounds/moan",
+				"stream": true
+			}
+		]
+	},
+	"Father": {
+		"category": "music",
+		"sounds": [
+			{
+				"name": "sounds/father",
+				"stream": true
+			}
+		]
+	}
+}
